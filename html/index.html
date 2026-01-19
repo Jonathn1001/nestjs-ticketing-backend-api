@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo - Upload Large File</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  </head>
+  <body>
+    <h1>Upload large file</h1>
+    <input id="fileInput" type="file" multiple />
+    <script>
+      const inputFile = document.getElementById('fileInput');
+      const chunkSize = 2 * 1024 * 1024; // 2MB
+
+      inputFile.onchange = async function () {
+        const file = inputFile.files[0],
+          chunks = [];
+        let startPos = 0;
+        while (startPos < file.size) {
+          chunks.push(file.slice(startPos, startPos + chunkSize));
+          startPos += chunkSize;
+        }
+        if (!chunks.length) return;
+        const fileNameRandom =
+          Math.random().toString(36).substring(2) + '-' + file.name;
+        const uploadPromises = chunks.map((ck, index) => {
+          const data = new FormData();
+          data.set('name', fileNameRandom + '-' + index);
+          data.append('files', ck);
+          return axios.post(
+            'http://localhost:3000/user/upload/large-file',
+            data,
+            {
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+            },
+          );
+        });
+      };
+    </script>
+  </body>
+</html>
