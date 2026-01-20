@@ -9,9 +9,13 @@
   <body>
     <h1>Upload large file</h1>
     <input id="fileInput" type="file" multiple />
+    <img src="" alt="uploaded" id="uploaded_img" />
+
     <script>
       const inputFile = document.getElementById('fileInput');
       const chunkSize = 2 * 1024 * 1024; // 2MB
+      const imgUploaded = document.getElementById('uploaded_img');
+      const api_url = 'http://localhost:3000';
 
       inputFile.onchange = async function () {
         const file = inputFile.files[0],
@@ -23,13 +27,17 @@
         }
         if (!chunks.length) return;
         const fileNameRandom =
-          Math.random().toString(36).substring(2) + '-' + file.name;
-        const uploadPromises = chunks.map((ck, index) => {
+          Math.random().toString(6).substring(2) + '-' + file.name;
+
+        chunks.map(async (ck, index) => {
           const data = new FormData();
+          const isLastChunk = index === chunks.length - 1;
           data.set('name', fileNameRandom + '-' + index);
           data.append('files', ck);
-          return axios.post(
-            'http://localhost:3000/user/upload/large-file',
+          data.set('isLastChunk', isLastChunk);
+
+          const res = await axios.post(
+            `${api_url}/user/upload/large-file`,
             data,
             {
               headers: {
@@ -37,6 +45,10 @@
               },
             },
           );
+          if (isLastChunk) {
+            console.log('uploaded', res);
+            imgUploaded.setAttribute('src', `${api_url}/${res.data.link}`);
+          }
         });
       };
     </script>

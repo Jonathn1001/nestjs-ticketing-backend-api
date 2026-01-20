@@ -10,7 +10,6 @@ import {
   UseInterceptors,
   BadRequestException,
   UploadedFiles,
-  Query,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -21,6 +20,8 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { storage } from './oss';
 import * as path from 'path';
 import * as fs from 'fs';
+import { mergeChunkedFile } from '../utils/files';
+
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -31,32 +32,15 @@ export class UserController {
     return this.userService.register(registerDto);
   }
 
-  @Get('merge/file')
-  mergeFile(@Query('file') fileName: string) {
-    const nameDir = 'uploads/chunks-' + fileName;
-
-    const files = fs.readdirSync(nameDir);
-    let startPos = 0;
-    files.map((file) => {
-      const filePath = nameDir + '/' + file;
-      console.log('merging file ->>>', filePath);
-      const streamFile = fs.createReadStream(filePath);
-      streamFile.pipe(
-        fs.createWriteStream('uploads/' + fileName, { start: startPos }),
-      );
-      startPos += fs.statSync(filePath).size;
-    });
-  }
-
   @Post('upload/large-file')
   @UseInterceptors(
     FilesInterceptor('files', 20, {
       dest: 'uploads',
     }),
   )
-  uploadLargeFile(
+  async uploadLargeFile(
     @UploadedFiles() files: Array<Express.Multer.File>,
-    @Body() body: { name: string },
+    @Body() body: { name: string; isLastChunk?: string },
   ) {
     console.log('upload files body ->>>', body);
     console.log('upload files ->>>', files);
@@ -72,9 +56,22 @@ export class UserController {
     if (!fs.existsSync(nameDir)) {
       fs.mkdirSync(nameDir);
     }
-    fs.cpSync(files[0].path, nameDir + '/' + body.name);
 
+    // Save the chunk
+    fs.cpSync(files[0].path, nameDir + '/' + body.name);
     fs.rmSync(files[0].path);
+
+    // Check if this is the last chunk
+    if (body.isLastChunk === 'true') {
+      // Extract original filename (remove random suffix)
+      const originalFileName = fileName.replace(/^[^-]+-/, '');
+      const outputPath = `uploads/${originalFileName}`;
+
+      // Merge all chunks using utility function
+      const result = await mergeChunkedFile(nameDir, outputPath);
+
+      return result;
+    }
   }
 
   @Post('upload/avatar')
