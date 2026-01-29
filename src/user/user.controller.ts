@@ -12,6 +12,7 @@ import {
   UploadedFiles,
 } from '@nestjs/common';
 import { UserService } from './user.service';
+import { MyLogger } from '../logger/my.logger';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
@@ -24,11 +25,21 @@ import { mergeChunkedFile } from '../utils/files';
 
 @Controller('user')
 export class UserController {
+  private readonly logger = new MyLogger();
+
   constructor(private readonly userService: UserService) {}
+
+  @Post('log')
+  log(@Body() body) {
+    this.logger.log(JSON.stringify(body), 'UserController');
+  }
 
   @Post('register')
   register(@Body() registerDto: RegisterUserDto) {
-    console.log('register user', registerDto);
+    this.logger.log(
+      `register user dto: ${JSON.stringify(registerDto)}`,
+      'UserController',
+    );
     return this.userService.register(registerDto);
   }
 
@@ -42,11 +53,17 @@ export class UserController {
     @UploadedFiles() files: Array<Express.Multer.File>,
     @Body() body: { name: string; isLastChunk?: string },
   ) {
-    console.log('upload files body ->>>', body);
-    console.log('upload files ->>>', files);
+    this.logger.log(
+      `upload files body: ${JSON.stringify(body)}`,
+      'UserController',
+    );
+    this.logger.log(
+      `upload files: ${files.map((f) => f.filename).join(', ')}`,
+      'UserController',
+    );
 
     const fileName = body.name.match(/(.+)-\d+$/)?.[1] ?? body.name;
-    console.log('fileName ->>>', fileName);
+    this.logger.log(`fileName: ${fileName}`, 'UserController');
     const nameDir = 'uploads/chunks-' + fileName;
 
     if (!fs.existsSync('uploads')) {
@@ -96,13 +113,16 @@ export class UserController {
     }),
   )
   uploadAvatar(@UploadedFile() file: Express.Multer.File) {
-    console.log('upload file ->>>', file.path);
+    this.logger.log(`upload file: ${file.path}`, 'UserController');
     return file.path;
   }
 
   @Post('login')
   login(@Body() loginDto: LoginUserDto) {
-    console.log('login user', loginDto);
+    this.logger.log(
+      `login user: ${JSON.stringify(loginDto)}`,
+      'UserController',
+    );
     return this.userService.login(loginDto);
   }
 
