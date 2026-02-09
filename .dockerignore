@@ -1,0 +1,8 @@
+*.md
+node_modules/
+*.txt
+.git 
+.gitignore
+.prettierrc
+.vscode/
+.DS_Store
